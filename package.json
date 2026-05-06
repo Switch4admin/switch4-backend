@@ -4,10 +4,7 @@
   "description": "Switch4 Sia Backend API",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy"
+    "start": "node src/index.js"
   },
   "dependencies": {
     "express": "^4.19.2",
@@ -20,11 +17,6 @@
     "multer": "^1.4.5-lts.1",
     "pdf-parse": "^1.1.1",
     "mammoth": "^1.6.0",
-    "winston": "^3.13.0",
-    "@prisma/client": "^5.14.0"
-  },
-  "devDependencies": {
-    "prisma": "^5.14.0",
-    "nodemon": "^3.1.0"
+    "winston": "^3.13.0"
   }
 }
