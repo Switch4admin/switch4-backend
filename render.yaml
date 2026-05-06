@@ -1,0 +1,107 @@
+# render.yaml — Render.com deployment config
+# Docs: https://render.com/docs/blueprint-spec
+#
+# COST BREAKDOWN (Free Tier):
+#   Web Service:  $0 (750 hrs/mo, spins down after 15min idle)
+#   PostgreSQL:   $0 (1GB storage, 90-day data retention)
+#   Cloudinary:   $0 (25GB storage + bandwidth, via free account)
+#   OpenAI:       ~$1-5/mo at light usage with gpt-4o-mini
+#   Gmail SMTP:   $0
+#
+# To upgrade for always-on: change plan: free → starter ($7/mo)
+
+services:
+  - type: web
+    name: switch4-sia-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run db:generate && npm run db:migrate
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+
+      # ── CORS ──────────────────────────────────────────────────
+      - key: ALLOWED_ORIGINS
+        value: https://www.switch4.co,https://switch4.co
+
+      # ── AI ────────────────────────────────────────────────────
+      - key: OPENAI_API_KEY
+        sync: false                 # set manually in Render dashboard
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_MAX_TOKENS
+        value: "1200"
+      - key: GROQ_API_KEY
+        sync: false                 # optional fallback
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+
+      # ── DATABASE ──────────────────────────────────────────────
+      # Auto-linked from the database below
+      - key: DATABASE_URL
+        fromDatabase:
+          name: switch4-sia-db
+          property: connectionString
+
+      # ── CLOUDINARY ────────────────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_UPLOAD_FOLDER
+        value: switch4-resumes
+
+      # ── EMAIL ─────────────────────────────────────────────────
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: RECRUITER_EMAIL
+        value: info@switch4.co
+      - key: FROM_EMAIL
+        value: noreply@switch4.co
+      - key: FROM_NAME
+        value: "Switch4 — Sia"
+
+      # ── JOBDIVA (set when credentials available) ──────────────
+      - key: JOBDIVA_BASE_URL
+        value: https://www.jobdiva.com
+      - key: JOBDIVA_COMPANY_ID
+        sync: false
+      - key: JOBDIVA_USERNAME
+        sync: false
+      - key: JOBDIVA_PASSWORD
+        sync: false
+
+      # ── RATE LIMITS ───────────────────────────────────────────
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX
+        value: "150"
+      - key: CHAT_RATE_LIMIT_MAX
+        value: "40"
+      - key: CONTACT_RATE_LIMIT_MAX
+        value: "10"
+      - key: UPLOAD_RATE_LIMIT_MAX
+        value: "15"
+
+# Free PostgreSQL database
+databases:
+  - name: switch4-sia-db
+    plan: free
+    databaseName: switch4_sia
+    user: switch4

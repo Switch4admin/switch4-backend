@@ -1,0 +1,166 @@
+// ═══════════════════════════════════════════════════════════════
+// SWITCH4 SIA — PRISMA SCHEMA
+// Database: PostgreSQL (Render.com free tier — 1GB)
+// Run: npx prisma db push   (dev / first deploy)
+//      npx prisma migrate deploy  (production migrations)
+// ═══════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── LEAD ─────────────────────────────────────────────────────────
+// Candidates and employers captured via chatbot or contact form
+model Lead {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Identity
+  firstName      String
+  lastName       String    @default("")
+  email          String
+  phone          String    @default("")
+
+  // Context
+  type           LeadType  @default(CANDIDATE)
+  source         LeadSource @default(CHATBOT)
+  roleInterest   String    @default("")
+  company        String    @default("")
+  notes          String    @default("") @db.Text
+
+  // JobDiva reference (set after creating candidate in JobDiva)
+  jobdivaId      String?
+  targetJobId    String    @default("")
+  targetJobTitle String    @default("")
+
+  // Relations
+  resumeId       String?
+  resume         Resume?   @relation(fields: [resumeId], references: [id])
+
+  // Workflow
+  status         LeadStatus @default(NEW)
+  assignedTo     String    @default("")
+  followUpAt     DateTime?
+  convertedAt    DateTime?
+
+  @@index([email])
+  @@index([createdAt])
+  @@index([status])
+  @@index([type])
+}
+
+enum LeadType {
+  CANDIDATE
+  EMPLOYER
+}
+
+enum LeadSource {
+  CHATBOT
+  CONTACT_FORM
+  RESUME_UPLOAD
+  DIRECT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  IN_PROGRESS
+  PLACED
+  CLOSED
+  LOST
+}
+
+// ── RESUME ────────────────────────────────────────────────────────
+model Resume {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+
+  // File metadata
+  originalName   String
+  mimeType       String
+  sizeBytes      Int      @default(0)
+
+  // Storage (Cloudinary)
+  cloudinaryId   String   @default("")
+  cloudinaryUrl  String   @default("")
+  localPath      String   @default("")
+
+  // Content
+  extractedText  String   @default("") @db.Text
+  aiAnalysis     String   @default("") @db.Text
+  matchedJobs    Json?    // Array of matched job objects from JobDiva
+
+  // Relations
+  leads          Lead[]
+
+  @@index([createdAt])
+}
+
+// ── CONTACT FORM SUBMISSION ───────────────────────────────────────
+model Contact {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+
+  role       String   @default("unknown")  // 'employer' | 'candidate' | 'unknown'
+  name       String
+  email      String
+  phone      String   @default("")
+  company    String   @default("")
+  service    String   @default("")
+  message    String   @db.Text
+
+  // Status
+  responded  Boolean  @default(false)
+  respondedAt DateTime?
+  notes      String   @default("") @db.Text
+
+  @@index([email])
+  @@index([createdAt])
+  @@index([responded])
+}
+
+// ── SCHEDULED CALL ────────────────────────────────────────────────
+model ScheduledCall {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+
+  name        String
+  email       String
+  phone       String   @default("")
+  slot        String                    // Human-readable: "Mon May 5 – 2:00 PM"
+  slotIso     DateTime?                 // Machine-readable datetime for calendar
+  timezone    String   @default("EST")
+  purpose     String   @default("Recruitment Call")
+  notes       String   @default("")
+
+  confirmed   Boolean  @default(true)
+  calendarSent Boolean @default(false)
+  completed   Boolean  @default(false)
+  cancelledAt DateTime?
+
+  @@index([email])
+  @@index([slotIso])
+}
+
+// ── CHAT SESSION (optional — for analytics) ───────────────────────
+model ChatSession {
+  id           String   @id @default(uuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessionId    String   @unique   // client-generated session ID
+  mode         String   @default("general")
+  messageCount Int      @default(0)
+  leadCaptured Boolean  @default(false)
+  leadId       String?
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
